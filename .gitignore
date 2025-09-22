@@ -1,0 +1,10 @@
+# 忽略 Python 虛擬環境
+myenv/
+
+# 忽略 Django 專案檔案
+__pycache__/
+*.pyc
+
+# 忽略其他不必要的檔案
+db.sqlite3
+.DS_Store

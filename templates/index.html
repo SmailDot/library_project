@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圖書館管理系統</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1, h2 {
+            color: #005a9c;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+        }
+        .main-content, .sidebar {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .main-content {
+            flex: 2;
+        }
+        .sidebar {
+            flex: 1;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .borrow-btn {
+            background-color: #007bff;
+            color: white;
+        }
+        .return-btn {
+            background-color: #dc3545;
+            color: white;
+        }
+        .returned-status {
+            color: #6c757d;
+        }
+        /* Chatbot Styles */
+        #chat-window {
+            height: 400px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 10px;
+            overflow-y: scroll;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            border-radius: 15px;
+            max-width: 70%;
+        }
+        .user-message {
+            background-color: #007bff;
+            color: white;
+            align-self: flex-end;
+        }
+        .ai-message {
+            background-color: #e9e9eb;
+            color: #333;
+            align-self: flex-start;
+        }
+        #chat-form {
+            display: flex;
+            margin-top: 10px;
+        }
+        #user-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #send-button {
+            padding: 10px 15px;
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>圖書館管理系統</h1>
+    <div class="container">
+        <div class="main-content">
+            <h2>所有書籍</h2>
+            <table id="books-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>書名</th>
+                        <th>作者</th>
+                        <th>狀態</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+
+            <h2>我的借閱紀錄</h2>
+            <table id="borrow-records-table">
+                <thead>
+                    <tr>
+                        <th>記錄ID</th>
+                        <th>書名</th>
+                        <th>借閱日期</th>
+                        <th>到期日</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    </tbody>
+            </table>
+        </div>
+
+        <div class="sidebar">
+            <h2>AI 圖書館助理</h2>
+            <div id="chat-window"></div>
+            <form id="chat-form">
+                <input type="text" id="user-input" placeholder="問我問題..." required>
+                <button type="submit" id="send-button">傳送</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const chatWindow = document.getElementById('chat-window');
+        const userInput = document.getElementById('user-input');
+        const chatForm = document.getElementById('chat-form');
+
+        // 載入書籍資料
+        function fetchBooks() {
+            fetch('/api/books/')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector('#books-table tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(book => {
+                        const row = document.createElement('tr');
+                        const status = book.is_available ? '可借閱' : '已借出';
+                        const actionButton = book.is_available
+                            ? `<button class="borrow-btn" onclick="borrowBookFromPage(${book.id})">借閱</button>`
+                            : `<span class="borrowed-status">已借出</span>`;
+                        
+                        row.innerHTML = `
+                            <td>${book.id}</td>
+                            <td>${book.title}</td>
+                            <td>${book.author}</td>
+                            <td>${status}</td>
+                            <td>${actionButton}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                });
+        }
+
+        // 載入借閱紀錄
+        function fetchBorrowRecords() {
+            fetch('/api/borrow-records/')
+                .then(response => response.json())
+                .then(data => {
+                    const tableBody = document.querySelector('#borrow-records-table tbody');
+                    tableBody.innerHTML = '';
+                    data.forEach(record => {
+                        const row = document.createElement('tr');
+                        const borrowDate = new Date(record.borrow_date).toLocaleDateString();
+                        const dueDate = new Date(record.due_date).toLocaleDateString();
+                        
+                        // 關鍵修正: 檢查 return_date 欄位是否存在
+                        const returnButtonHtml = record.return_date
+                            ? `<span class="returned-status">已歸還</span>`
+                            : `<button class="return-btn" onclick="returnBookFromPage(${record.id})">歸還</button>`;
+
+                        row.innerHTML = `
+                            <td>${record.id}</td>
+                            <td>${record.book_title}</td>
+                            <td>${borrowDate}</td>
+                            <td>${dueDate}</td>
+                            <td>${returnButtonHtml}</td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                });
+        }
+        
+        // 頁面上的借書按鈕
+        function borrowBookFromPage(bookId) {
+            fetch('/api/borrow-records/borrow_book/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ book_id: bookId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 修正: 根據後端回傳的狀態顯示訊息
+                if (data.message === 'success') {
+                    alert('借閱完成');
+                } else {
+                    alert(data.message);
+                }
+                fetchBooks();
+                fetchBorrowRecords();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // 頁面上的歸還按鈕
+        function returnBookFromPage(recordId) {
+            fetch(`/api/borrow-records/${recordId}/return_book/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 修正: 根據後端回傳的狀態顯示訊息
+                if (data.message === 'success') {
+                    alert('歸還完成');
+                } else {
+                    alert(data.message);
+                }
+                fetchBooks();
+                fetchBorrowRecords();
+            })
+            .catch(error => console.error('Error:', error));
+        }
+
+        // 處理聊天機器人訊息發送
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const question = userInput.value;
+            if (question.trim() === '') return;
+            
+            // 顯示使用者訊息
+            addMessage(question, 'user-message');
+            userInput.value = '';
+
+            // 發送請求到聊天機器人 API
+            fetch('/api/chat/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: JSON.stringify({ question: question })
+            })
+            .then(response => response.json())
+            .then(data => {
+                // 顯示 AI 回覆
+                addMessage(data.message, 'ai-message');
+                // 修正: 確保兩個列表都刷新
+                fetchBooks();
+                fetchBorrowRecords();
+            })
+            .catch(error => {
+                console.error('Chat API Error:', error);
+                addMessage('抱歉，與聊天機器人連線失敗。', 'ai-message');
+            });
+        });
+
+        // 顯示訊息到聊天視窗
+        function addMessage(text, className) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', className);
+            messageDiv.textContent = text;
+            chatWindow.appendChild(messageDiv);
+            chatWindow.scrollTop = chatWindow.scrollHeight; // 自動捲動到底部
+        }
+
+        // 取得 CSRF token 的函式
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.startsWith(name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // 頁面載入時自動執行
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchBooks();
+            fetchBorrowRecords();
+            
+            // 新增: 頁面載入時自動顯示初始訊息
+            addMessage("哈囉！我是您的圖書館助理，請問有什麼需要幫忙的嗎？\n您可以問我：\n1. 如何借閱書籍？\n2. 借閱期限是多久？\n3. 如何歸還圖書？\n4. 查詢所有書籍", 'ai-message');
+        });
+    </script>
+</body>
+</html>
