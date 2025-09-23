@@ -1,4 +1,5 @@
 智慧圖書館管理系統
+
 這是一個整合 AI 助理的現代化圖書館管理系統，旨在提供使用者直觀、高效的圖書借閱與管理體驗。本專案的核心亮點在於其 AI 助理功能，能透過自然語言處理使用者的借書請求，大幅簡化傳統的借書流程。
 
 核心功能
@@ -36,49 +37,41 @@ LLM 框架：LangChain
 安裝 Git：前往 Git 官網 下載並安裝。
 
 安裝 Ollama：前往 Ollama 官網 下載並安裝，然後在命令提示字元中運行以下指令以下載模型：
-
-Bash
-
 ollama run gemma3:4b
+
 步驟二：專案啟動
 複製專案：使用 git clone 指令將專案從 GitHub 複製到本地。
 
-Bash
-
 git clone https://github.com/SmailDot/library_project.git
 cd library_project
+
 建立虛擬環境：
 
-Bash
-
 python -m venv myenv
-# Windows
-myenv\Scripts\activate
-安裝依賴套件：
 
-Bash
+# 啟動虛擬環境 (Windows)
+myenv\Scripts\activate
+
+安裝依賴套件：
 
 pip install -r requirements.txt
 （如果沒有 requirements.txt，請先執行 pip freeze > requirements.txt，然後再執行安裝指令）
 
 執行資料庫遷移：
 
-Bash
-
 python manage.py makemigrations
 python manage.py migrate
+
 創建管理員帳號：
 
-Bash
-
 python manage.py createsuperuser
-根據提示設定帳號、電子郵件和密碼。
+根據提示設定帳號、電子郵件(可填空)和密碼。
 
 啟動伺服器：
 
-Bash
 
 python manage.py runserver
+
 步驟三：操作指南
 管理後台：
 
